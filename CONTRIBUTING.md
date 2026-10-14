@@ -46,7 +46,7 @@ Before opening a Pull Request:
 
 - Python 3.12.
 - Indentation: 4 spaces.
-- Comments: in English.
+- Comments: English preferred (legacy code has Russian comments).
 - Function and variable names: in English.
 
 ## License
