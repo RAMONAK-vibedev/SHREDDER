@@ -32,3 +32,4 @@ backup_*/
 
 # === Папка с готовыми сборками для Release ===
 SHREDDER_builds/
+desktop.ini

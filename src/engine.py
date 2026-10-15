@@ -98,14 +98,17 @@ def check_file_strict(path_for_io: str) -> None:
     try:
         tag = os.lstat(path_for_io).st_reparse_tag
         if tag != 0:
-            # ВНИМАНИЕ: FileRejectedError не ловится except AttributeError
-            # (это разные типы исключений) — исключение пройдёт наверх,
-            # как и задумано.
+            # ВНИМАНИЕ: FileRejectedError не ловится ниже — это другой
+            # тип исключения, он пройдёт наверх, как и задумано.
             raise FileRejectedError(
                 i18n.t("error_reparse")
             )
     except AttributeError:
         # На старых Python атрибута st_reparse_tag нет — пропускаем.
+        pass
+    except OSError:
+        # На системных файлах или без прав lstat может упасть.
+        # Пропускаем проверку — дальше сработают другие.
         pass
 
     # 4. Это файл, а не папка?
@@ -195,6 +198,9 @@ def overwrite_fast(path_for_io: str, size: int, sub_progress) -> None:
         return
 
     # Считаем РЕАЛЬНЫЙ объём записи для правильного прогресса.
+    # ВНИМАНИЕ: формула может недооценить реальный объём
+    # на 1 CHUNK. Финальный прогресс клампится в min(1.0, ...)
+    # в _tick() ниже.
     middle_size = size - HEAD_SIZE - TAIL_SIZE
     # В середине записываем примерно половину (чередование 4/4).
     middle_writes = (middle_size // (2 * CHUNK_SIZE)) * CHUNK_SIZE
@@ -213,7 +219,12 @@ def overwrite_fast(path_for_io: str, size: int, sub_progress) -> None:
         nonlocal last_report
         now = time.time()
         if now - last_report > 0.3:
-            sub_progress(written / total_writes)
+            # Клампим в 1.0 — формула total_writes может
+            # недооценить объём на 1 CHUNK.
+            if total_writes > 0:
+                sub_progress(min(1.0, written / total_writes))
+            else:
+                sub_progress(1.0)
             last_report = now
 
     with open(path_for_io, 'r+b') as f:
@@ -372,6 +383,17 @@ def shred_file(path: str, mode: str, progress_callback=None) -> dict:
         report(2, i18n.t("step_confirm"))
 
         # ---------- ШАГ 3. ПЕРЕИМЕНОВАНИЕ ----------
+        # ВАЖНО: переименование идёт ПЕРЕД перезаписью осознанно.
+        # Причины (см. ревью сеньоров от 15.10.2026):
+        # 1. Отвязка от блокировок: OneDrive, превью-генераторы,
+        #    плееры могут держать файл по оригинальному пути.
+        #    Переименование "отпускает" старую ссылку — и open('r+b')
+        #    в ШАГЕ 4 проходит без PermissionError.
+        # 2. Мимикрия: пока идёт долгая перезапись (до 2 минут для
+        #    20 ГБ), файл уже называется uuid.tmp — неотличим от
+        #    обычной активности temp.
+        # Минус: при падении питания во время перезаписи пользователь
+        # увидит uuid.tmp вместо имени файла. Это осознанный компромисс.
         report(3, i18n.t("step_rename"))
         new_name = generate_temp_name()
         new_path_for_io = os.path.join(

@@ -618,10 +618,21 @@ class ShredderApp:
     def _update_strategy_ui(self, size: int):
         self.canvas.delete("strategy_ui")
 
+        # Всегда удаляем старый trace в самом начале —
+        # иначе при переключении с большого файла на маленький
+        # он останется висеть (эта ветка в else ниже).
+        if self._strategy_trace_id is not None:
+            try:
+                self.strategy_var.trace_remove("write", self._strategy_trace_id)
+            except Exception:
+                pass
+            self._strategy_trace_id = None
+
         GB = 1024 * 1024 * 1024
         y = self.strategy_y
         left = self.strategy_left
         right = WIN_W - 40
+        ...
 
         self.canvas.create_text(
             left + 1, y + 1, text=i18n.t("strategy_title"),
@@ -667,14 +678,7 @@ class ShredderApp:
                         else i18n.t("strategy_full_short"))
                 self.canvas.itemconfig(self.info_tags["strategy"], text=text)
 
-            # Снимаем старый trace, если он был — иначе они накопятся.
-            if self._strategy_trace_id is not None:
-                try:
-                    self.strategy_var.trace_remove(
-                        "write", self._strategy_trace_id
-                    )
-                except Exception:
-                    pass
+            # (старый trace уже удалён в начале метода)
 
             self._strategy_trace_id = self.strategy_var.trace_add(
                 "write", update_label

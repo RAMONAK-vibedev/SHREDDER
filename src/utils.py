@@ -48,7 +48,7 @@ LONG_PREFIX = "\\\\?\\"          # префикс для обычных длин
 
 def build_path_for_io(path: str) -> str:
     r"""
-    Готовит путь для вызовов WinAPI, если путь длинный (>260 символов).
+   Готовит путь для вызовов WinAPI, если путь длинный (>260 символов).
 
     Зачем это нужно:
     Windows по умолчанию не умеет работать с путями длиннее 260 символов.
@@ -59,22 +59,25 @@ def build_path_for_io(path: str) -> str:
 
     Возвращает: путь, пригодный для open() / os.rename() / os.remove().
     """
+    # Всегда сначала делаем путь абсолютным.
+    # Без этого относительный путь ("document.pdf") сломает
+    # os.path.dirname в engine.py — вернёт пустую строку.
+    abs_path = os.path.abspath(path)
+
     # Если путь короче или равен 250 символов — трогать не надо.
-    # Почему 250, а не 260: 260 минус длина префикса (4 символа) минус запас.
-    if len(path) <= 250:
-        return path
+    if len(abs_path) <= 250:
+        return abs_path
 
     # Если префикс уже стоит — не дублируем.
-    if path.startswith(LONG_PREFIX):
-        return path
+    if abs_path.startswith(LONG_PREFIX):
+        return abs_path
 
-    # Сетевой путь начинается с двойного обратного слэша (\\server\share\...).
-    if path.startswith("\\\\"):
-        # Отрезаем первые два слэша (path[2:]) и приклеиваем UNC-префикс.
-        return UNC_PREFIX + path[2:]
+    # Сетевой путь начинается с двойного обратного слэша.
+    if abs_path.startswith("\\\\"):
+        return UNC_PREFIX + abs_path[2:]
 
-    # Обычный путь — приклеиваем префикс к полному абсолютному пути.
-    return LONG_PREFIX + os.path.abspath(path)
+    # Обычный путь — приклеиваем префикс.
+    return LONG_PREFIX + abs_path
 
 
 # ============================================================
