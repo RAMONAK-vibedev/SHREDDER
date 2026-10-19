@@ -64,7 +64,7 @@ class FileRejectedError(ShredderError):
 #  ПРОВЕРКИ ФАЙЛА
 # ============================================================
 
-def check_file_strict(path_for_io: str) -> None:
+def check_file_strict(path_for_io: str, allow_hardlinks: bool = False) -> None:
     r"""
     Строгие проверки. Если файл не проходит — бросает FileRejectedError
     с готовым текстом для пользователя.
@@ -118,15 +118,18 @@ def check_file_strict(path_for_io: str) -> None:
         )
 
     # 5. Hard links. st_nlink > 1 значит, у файла есть ещё имена.
-    try:
-        nlink = os.stat(path_for_io).st_nlink
-        if nlink > 1:
-            raise FileRejectedError(
-                i18n.t("error_hardlinks", n=nlink)
-            )
-    except OSError:
-        # На FAT32 st_nlink всегда 1 — эта ветка не сработает.
-        pass
+    # Если allow_hardlinks=True — пропускаем проверку (пользователь
+    # уже дал согласие в диалоге, например, в очереди).
+    if not allow_hardlinks:
+        try:
+            nlink = os.stat(path_for_io).st_nlink
+            if nlink > 1:
+                raise FileRejectedError(
+                    i18n.t("error_hardlinks", n=nlink)
+                )
+        except OSError:
+            # На FAT32 st_nlink всегда 1 — эта ветка не сработает.
+            pass
 
     # 6. Сжат / зашифрован / разрежен.
     if is_compressed_encrypted_sparse(path_for_io):
@@ -293,7 +296,8 @@ def truncate_and_scramble(path_for_io: str) -> None:
 #  ГЛАВНАЯ ФУНКЦИЯ
 # ============================================================
 
-def shred_file(path: str, mode: str, progress_callback=None) -> dict:
+def shred_file(path: str, mode: str, progress_callback=None,
+               allow_hardlinks: bool = False) -> dict:
     r"""
     Уничтожает файл.
 
@@ -354,7 +358,7 @@ def shred_file(path: str, mode: str, progress_callback=None) -> dict:
         current_path_for_io = path_for_io
 
         # Строгие проверки. Если что-то не так — бросит исключение.
-        check_file_strict(path_for_io)
+        check_file_strict(path_for_io, allow_hardlinks=allow_hardlinks)
 
         # Снимаем атрибут "только для чтения" заранее.
         # Без этого open('r+b') в ШАГЕ 4 упадёт с PermissionError,

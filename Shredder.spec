@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('assets\\locales', 'assets\\locales'), ('assets\\sounds', 'assets\\sounds'), ('assets\\shredder_bg.png', 'assets'), ('assets\\my_logo.png', 'assets'), ('assets\\deepseek_logo.png', 'assets'), ('assets\\icon.ico', 'assets')]
+datas = [('assets\\locales', 'assets\\locales'), ('assets\\sounds', 'assets\\sounds'), ('assets\\shredder_bg.png', 'assets'), ('assets\\shredder_bg2.png', 'assets'), ('assets\\my_logo.png', 'assets'), ('assets\\deepseek_logo.png', 'assets'), ('assets\\icon.ico', 'assets')]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('tkinterdnd2')

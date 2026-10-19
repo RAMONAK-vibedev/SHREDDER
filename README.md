@@ -10,7 +10,7 @@
 <table>
 <tr>
 <td><img src="docs/screenshots/main_en.png" width="280" alt="Main window"></td>
-<td><img src="docs/screenshots/main_up_en.png" width="280" alt="File selected"></td>
+<td><img src="docs/screenshots/queue_en.png" width="280" alt="Deletion queue"></td>
 <td><img src="docs/screenshots/language_en.png" width="280" alt="Language picker"></td>
 </tr>
 </table>
@@ -27,14 +27,16 @@ SHREDDER solves this: it **overwrites the file content** with random data and ze
 
 ## Features
 
+- **Two operating modes:** Single file and Mass Deletion Queue.
+- **Mass Deletion Queue:** drag and drop multiple files, manage the list, pause, resume, or stop the process safely. Errors on one file do not stop the whole queue.
 - **Two erase modes:**
   - ⚡ **Fast** — 4 MB stripes (head, tail, middle). For files ≥ 1 GB.
   - ☢️ **Full** — the whole file with zeros. Auto-selected for files < 1 GB.
-- **Drag-and-drop** — drop a file straight into the window.
+- **Drag-and-drop** — drop a file (or multiple files) straight into the window.
 - **330-language localization** — from English to Klingon.
 - **Smart checks:** symlinks, shortcuts (.lnk), hard links, compressed/EFS/sparse files — all recognized and handled correctly.
 - **Warnings:** network drive, removable media — the app warns that the guarantee is limited.
-- **Shredder sound** while overwriting long files (looping, quiet).
+- **Shredder sound** with a mute button (disable in queue mode).
 - **Fixed window size, custom background, icon** — a polished UI.
 
 ## Installation
@@ -136,6 +138,7 @@ We **don't hide** this — on the contrary, we're proud of this way of working.
 
 ## Credits
 
+- **Enard52** — for the excellent Turkish (tr) translation fixes! The first external contributor to the project.
 - 330 localization files — **machine-generated**. Native-speaker fixes are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
 - DeepSeek logo is used with respect and attribution.
 - **This is the author's first project.** If you spot weird decisions or bugs — please open an Issue, let's learn together.

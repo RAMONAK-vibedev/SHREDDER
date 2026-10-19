@@ -185,8 +185,11 @@ def get_drive_type(path: str) -> int:
       4 — сетевой (\\server\share)
       1 — некорректный путь (ошибка)
     """
+def get_drive_type(path: str) -> int:
+    # Приводим к абсолютному пути (защита от "file.txt").
+    abs_path = os.path.abspath(path)
     # Отделяем букву диска: 'C:\file.txt' → 'C:'
-    drive = os.path.splitdrive(path)[0]
+    drive = os.path.splitdrive(abs_path)[0]
 
     # Приклеиваем хвостовой слэш.
     # MSDN требует, чтобы UNC-путь был с завершающим \,

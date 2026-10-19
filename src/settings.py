@@ -11,10 +11,8 @@ settings.py — сохранение настроек программы (нап
 import json
 import os
 
-
 # Язык по умолчанию (если файла нет).
 DEFAULT_LANGUAGE = "en"
-
 
 def _settings_dir() -> str:
     """
@@ -35,9 +33,7 @@ def _settings_dir() -> str:
         pass
     return folder
 
-
 SETTINGS_FILE = os.path.join(_settings_dir(), "settings.json")
-
 
 def load_settings() -> dict:
     """
@@ -56,7 +52,6 @@ def load_settings() -> dict:
     except Exception:
         return {"language": DEFAULT_LANGUAGE}
 
-
 def save_settings(data: dict) -> None:
     """
     Записывает настройки в settings.json.
@@ -71,11 +66,9 @@ def save_settings(data: dict) -> None:
     except Exception:
         pass
 
-
 def get_language() -> str:
     """Возвращает текущий код языка (например, 'ru')."""
     return load_settings().get("language", DEFAULT_LANGUAGE)
-
 
 def set_language(code: str) -> None:
     """Сохраняет выбранный язык."""
@@ -97,17 +90,28 @@ def set_language(code: str) -> None:
 # Словарь в памяти: {"skip_confirm": True, ...}
 _session_flags: dict = {}
 
-
 def get_flag(name: str) -> bool:
     """Возвращает True, если пользователь уже отключил этот диалог в текущей сессии."""
     return bool(_session_flags.get(name, False))
-
 
 def set_flag(name: str, value: bool = True) -> None:
     """Устанавливает флаг ТОЛЬКО в памяти (не сохраняется на диск)."""
     _session_flags[name] = bool(value)
 
-
 def reset_session_flags() -> None:
     """Сбрасывает все флаги текущей сессии (не используется автоматически)."""
     _session_flags.clear()
+
+# ============================================================
+#  НАСТРОЙКА ЗВУКА
+# ============================================================
+
+def get_sound_enabled() -> bool:
+    """Возвращает True, если звук включён (по умолчанию — да)."""
+    return bool(load_settings().get("sound_enabled", True))
+
+def set_sound_enabled(value: bool) -> None:
+    """Сохраняет настройку звука."""
+    data = load_settings()
+    data["sound_enabled"] = bool(value)
+    save_settings(data)

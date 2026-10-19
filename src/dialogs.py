@@ -9,6 +9,7 @@ dialogs.py — модальные диалоги программы «ШРЕДД
 """
 
 import tkinter as tk
+from tkinter import ttk
 
 from src import i18n
 from src.theme import (
@@ -227,7 +228,6 @@ def show_error(parent, title, message):
     except tk.TclError:
         pass
 
-
 # ============================================================
 #  ОТЧЁТ ОБ УНИЧТОЖЕНИИ
 # ============================================================
@@ -329,6 +329,47 @@ def show_success_report(parent, result, checkbox_text=None):
         pass
 
     return answer["dont_show"]
+
+# ============================================================
+#  ИНФОРМАЦИОННЫЙ ДИАЛОГ (успех / справка)
+# ============================================================
+
+def show_info(parent, title, message, height=280):
+    """Информационный диалог с иконкой ✅ и одной кнопкой OK."""
+    win = tk.Toplevel(parent)
+    win.withdraw()
+    win.title(title)
+    set_icon(win)
+    win.configure(bg=COLOR_PANEL)
+    win.resizable(False, False)
+    win.transient(parent)
+    center_on_parent(parent, win, 460, height)
+
+    tk.Label(
+        win, text="✅  " + title,
+        font=_seg(13, "bold"),
+        fg="#4caf50", bg=COLOR_PANEL
+    ).pack(pady=(20, 15))
+
+    tk.Label(
+        win, text=message,
+        font=_seg(10),
+        fg=COLOR_TEXT, bg=COLOR_PANEL,
+        wraplength=400, justify="left"
+    ).pack(padx=25, pady=(0, 25))
+
+    ok_btn = _dialog_button(
+        win, i18n.t("ok_button"), win.destroy,
+        primary=False, width=15, font_size=11
+    )
+    ok_btn.pack(pady=(0, 20))
+
+    win.bind("<Escape>", lambda e: win.destroy())
+
+    try:
+        win.wait_window()
+    except tk.TclError:
+        pass
 
 # ============================================================
 #  ДИАЛОГ ВЫБОРА ЯЗЫКА
@@ -549,3 +590,229 @@ def show_language_picker(parent, current_lang, on_apply):
     new_code = result["code"]
     if new_code and new_code != current_lang:
         on_apply(new_code)
+
+# ============================================================
+#  ДИАЛОГ HARD LINK (для очереди)
+# ============================================================
+
+def show_hardlink_dialog(parent, filename, nlink, height=310):
+    """
+    Диалог для hard link с галочкой «применять ко всем».
+    Возвращает (answer, dont_ask):
+      answer   — True = уничтожить, False = пропустить.
+      dont_ask — True = применить ко всем hard links в очереди.
+    """
+    result = {"answer": False, "dont_ask": False}
+
+    win = tk.Toplevel(parent)
+    win.withdraw()
+    win.title(i18n.t("hardlink_title"))
+    set_icon(win)
+    win.configure(bg=COLOR_PANEL)
+    win.resizable(False, False)
+    win.transient(parent)
+    center_on_parent(parent, win, 480, height)
+
+    tk.Label(
+        win, text="⚠  " + i18n.t("hardlink_title"),
+        font=_seg(13, "bold"),
+        fg="#ffcc66", bg=COLOR_PANEL
+    ).pack(pady=(20, 15))
+
+    msg = i18n.t("hardlink_text", name=filename, nlink=nlink)
+    tk.Label(
+        win, text=msg,
+        font=_seg(10),
+        fg=COLOR_TEXT, bg=COLOR_PANEL,
+        wraplength=430, justify="left"
+    ).pack(padx=25, pady=(0, 12))
+
+    check_var = tk.BooleanVar(value=False)
+    tk.Checkbutton(
+        win, text=i18n.t("hardlink_apply_all"),
+        variable=check_var,
+        font=_seg(9),
+        fg=COLOR_TEXT_DIM, bg=COLOR_PANEL,
+        activeforeground=COLOR_TEXT,
+        activebackground=COLOR_PANEL,
+        selectcolor="#333333",
+        bd=0, cursor="hand2",
+        highlightthickness=0
+    ).pack(padx=25, anchor="w", pady=(0, 12))
+
+    btn_frame = tk.Frame(win, bg=COLOR_PANEL)
+    btn_frame.pack(pady=(0, 20))
+
+    def on_skip():
+        result["answer"] = False
+        result["dont_ask"] = check_var.get()
+        win.destroy()
+
+    def on_destroy():
+        result["answer"] = True
+        result["dont_ask"] = check_var.get()
+        win.destroy()
+
+    skip_btn = _dialog_button(
+        btn_frame, i18n.t("hardlink_skip"), on_skip,
+        primary=False, width=13
+    )
+    skip_btn.pack(side="left", padx=8)
+
+    destroy_btn = _dialog_button(
+        btn_frame, i18n.t("hardlink_destroy"), on_destroy,
+        primary=True, width=13
+    )
+    destroy_btn.pack(side="left", padx=8)
+
+    win.bind("<Escape>", lambda e: on_skip())
+
+    try:
+        win.wait_window()
+    except tk.TclError:
+        pass
+
+    return result["answer"], result["dont_ask"]
+
+# ============================================================
+#  СВОДНЫЙ ОТЧЁТ ПО ОЧЕРЕДИ (с деталями)
+# ============================================================
+
+def show_queue_report(parent, summary_text, details_rows,
+                      was_stopped=False, has_errors=False):
+    """
+    Сводный отчёт по завершении очереди.
+    С кнопкой «ПОКАЗАТЬ ДЕТАЛИ» — открывает список с причинами.
+
+    Параметры:
+      summary_text  — текст сводки (общая часть).
+      details_rows  — список словарей:
+                        [{"name": str, "status": str, "reason": str}, ...]
+      was_stopped   — True если очередь была прервана.
+      has_errors    — True если были ошибки/пропуски (красная иконка).
+    """
+    win = tk.Toplevel(parent)
+    win.withdraw()
+    win.title(i18n.t("queue_report_title"))
+    set_icon(win)
+    win.configure(bg=COLOR_PANEL)
+    win.resizable(False, False)
+    win.transient(parent)
+    center_on_parent(parent, win, 520, 400)
+
+    icon = "❌" if has_errors else "✅"
+    color = "#ef5350" if has_errors else "#4caf50"
+
+    tk.Label(
+        win, text=f"{icon}  {i18n.t('queue_report_title')}",
+        font=_seg(14, "bold"),
+        fg=color, bg=COLOR_PANEL
+    ).pack(pady=(18, 12))
+
+    tk.Label(
+        win, text=summary_text,
+        font=_seg(10),
+        fg=COLOR_TEXT, bg=COLOR_PANEL,
+        justify="left", wraplength=460
+    ).pack(padx=25, pady=(0, 15), fill="x")
+
+    btn_frame = tk.Frame(win, bg=COLOR_PANEL)
+    btn_frame.pack(pady=(0, 20))
+
+    def on_details():
+        win.destroy()
+        _show_queue_details(parent, details_rows)
+
+    details_btn = _dialog_button(
+        btn_frame, i18n.t("queue_report_details_btn"), on_details,
+        primary=False, width=18, font_size=10
+    )
+    details_btn.pack(side="left", padx=8)
+
+    ok_btn = _dialog_button(
+        btn_frame, i18n.t("ok_button"), win.destroy,
+        primary=True, width=12, font_size=10
+    )
+    ok_btn.pack(side="left", padx=8)
+
+    win.bind("<Escape>", lambda e: win.destroy())
+
+    try:
+        win.wait_window()
+    except tk.TclError:
+        pass
+
+
+def _show_queue_details(parent, details_rows):
+    """Отдельное окно со списком результатов по каждому файлу."""
+    win = tk.Toplevel(parent)
+    win.withdraw()
+    win.title(i18n.t("queue_details_title"))
+    set_icon(win)
+    win.configure(bg=COLOR_PANEL)
+    win.resizable(False, False)
+    win.transient(parent)
+    center_on_parent(parent, win, 650, 580)
+
+    tk.Label(
+        win, text=i18n.t("queue_details_title"),
+        font=_seg(13, "bold"),
+        fg=COLOR_TEXT, bg=COLOR_PANEL
+    ).pack(pady=(15, 10))
+
+    # Treeview с результатами.
+    tree_frame = tk.Frame(win, bg=COLOR_PANEL)
+    tree_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+
+    tree = ttk.Treeview(
+        tree_frame,
+        columns=("name", "status", "reason"),
+        show="headings",
+        height=15,
+        selectmode="browse",
+        style="Queue.Treeview",
+    )
+    tree.heading("name", text=i18n.t("queue_details_file"))
+    tree.heading("status", text=i18n.t("queue_details_status"))
+    tree.heading("reason", text=i18n.t("queue_details_reason"))
+    tree.column("name", width=220, anchor="w")
+    tree.column("status", width=90, anchor="center", stretch=False)
+    tree.column("reason", width=260, anchor="w")
+
+    scroll = ttk.Scrollbar(
+        tree_frame, orient="vertical", command=tree.yview
+    )
+    tree.configure(yscrollcommand=scroll.set)
+    tree.pack(side="left", fill="both", expand=True)
+    scroll.pack(side="right", fill="y")
+
+    status_map = {
+        "done":      (i18n.t("queue_status_done"), "#4caf50"),
+        "skipped":   (i18n.t("queue_status_skipped"), "#ffcc66"),
+        "failed":    (i18n.t("queue_status_failed"), "#ef5350"),
+        "cancelled": (i18n.t("queue_status_cancelled"), "#aaaaaa"),
+    }
+
+    for row in details_rows:
+        name = row.get("name", "—")
+        status = row.get("status", "—")
+        reason = row.get("reason", "") or ""
+
+        status_label = status_map.get(status, (status, "#ffffff"))[0]
+        tree.insert(
+            "", "end",
+            values=(name, status_label, reason)
+        )
+
+    ok_btn = _dialog_button(
+        win, i18n.t("ok_button"), win.destroy,
+        primary=False, width=15, font_size=11
+    )
+    ok_btn.pack(pady=(0, 20))
+
+    win.bind("<Escape>", lambda e: win.destroy())
+
+    try:
+        win.wait_window()
+    except tk.TclError:
+        pass
